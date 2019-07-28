@@ -171,7 +171,8 @@ int main(int argc, char *argv[])
 
 		story = json_loads(story_text, 0, &jerror);
 		if (!json_is_object(story)) {
-			FATAL("received unknown json story blob:\n%s", story_text);
+			FATAL("received unknown json story blob, %s:\n%s",
+			      (char *)jerror.text, story_text);
 		}
 		free(story_text);
 
