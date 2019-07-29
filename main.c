@@ -28,11 +28,6 @@
 
 #define NUM_STORIES (5)
 
-static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *data)
-{
-	return fwrite(ptr, size, nmemb, (FILE *)data);
-}
-
 /* allocates bufsize if supplied buf is NULL */
 int request_body(char *buf, size_t bufsiz, char *url)
 {
@@ -57,7 +52,7 @@ int request_body(char *buf, size_t bufsiz, char *url)
 	}
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, http_buf);
 
 	res = curl_easy_perform(curl);
@@ -122,8 +117,7 @@ int main(int argc, char *argv[])
 	bool help = false;
 	bool verbose = false;
 
-	char stories_text[HTTP_BUFSIZ] = { 0 };
-	char story_text[HTTP_BUFSIZ] = { 0 };
+	char text_buf[HTTP_BUFSIZ] = { 0 };
 	char story_text_url[256] = { 0 };
 
 	json_error_t jerror;
@@ -147,17 +141,16 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 
 	if (!request_body(
-		    stories_text, HTTP_BUFSIZ,
+		    text_buf, HTTP_BUFSIZ,
 		    "https://hacker-news.firebaseio.com/v0/topstories.json")) {
 		FATAL("could not retrieve top stories");
 	}
 
-	stories_root = json_loads(stories_text, 0, &jerror);
+	stories_root = json_loads(text_buf, 0, &jerror);
 
 	if (!stories_root) {
 		char *msg = jerror.text;
-		FATAL("failed to parse top stories, %s:\n%s", msg,
-		      stories_text);
+		FATAL("failed to parse top stories, %s:\n%s", msg, text_buf);
 	}
 
 	if (!json_is_array(stories_root)) {
@@ -180,14 +173,14 @@ int main(int argc, char *argv[])
 			"https://hacker-news.firebaseio.com/v0/item/%lld.json",
 			id);
 
-		if (!request_body(story_text, HTTP_BUFSIZ, story_text_url)) {
+		if (!request_body(text_buf, HTTP_BUFSIZ, story_text_url)) {
 			FATAL("could not retrieve story");
 		}
 
-		story_root = json_loads(story_text, 0, &jerror);
+		story_root = json_loads(text_buf, 0, &jerror);
 		if (!json_is_object(story_root)) {
 			FATAL("received unknown json story blob, %s:\n%s",
-			      (char *)jerror.text, story_text);
+			      (char *)jerror.text, text_buf);
 		}
 
 		stories[i] = story_root;

@@ -9,3 +9,7 @@ minhn: $(SRC)
 check-macro:
 	$(CC) -E main.c
 
+install:
+	mkdir -p /usr/bin
+	mv ./minhn /usr/bin
+
