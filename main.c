@@ -2,14 +2,17 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <curl/curl.h>
 #include <jansson.h>
 
 #define PRINTLN(fmt, ...) printf(fmt "\n", ##__VA_ARGS__);
 
 #define FATAL(fmt, ...)                                                        \
-	fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__);                    \
-	exit(1);
+	do {                                                                   \
+		fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__);            \
+		exit(1);                                                       \
+	} while (0)
 
 #define VPRINTLN(fmt, ...)                                                     \
 	if (verbose)                                                           \
@@ -24,20 +27,26 @@
 	if (strncmp(argv[i], str, sizeof(str)) == 0)                           \
 		var = true;
 
+#define HAS_INT_ARG(var, min, max)                                             \
+	do {                                                                   \
+		unsigned long num = strtoul(argv[i], NULL, 10);                \
+		if (errno != ERANGE) {                                         \
+			if (num >= min && num <= max) {                        \
+				var = num;                                     \
+			} else if (num > 1) {                                  \
+				FATAL("NUM_STORIES must be >= 1 and <= 500."); \
+			}                                                      \
+		}                                                              \
+		errno = 0;                                                     \
+	} while (0)
+
 #define HTTP_BUFSIZ (10 * 1024)
 
-#define NUM_STORIES (5)
-
-/* allocates bufsize if supplied buf is NULL */
 int request_body(char *buf, size_t bufsiz, char *url)
 {
 	CURL *curl;
 	CURLcode res;
 	FILE *http_buf;
-
-	if (!buf) {
-		buf = malloc(bufsiz);
-	}
 
 	http_buf = fmemopen(buf, bufsiz, "w+");
 
@@ -72,7 +81,7 @@ req_err:
 	return false;
 }
 
-size_t prettify_stories(char **str, json_t **stories)
+size_t prettify_stories(char **str, json_t **stories, unsigned int num_stories)
 {
 	size_t buf_len;
 	FILE *f;
@@ -83,7 +92,7 @@ size_t prettify_stories(char **str, json_t **stories)
 		FATAL("failed to open write stream");
 	}
 
-	for (int i = 0; i < NUM_STORIES; ++i) {
+	for (int i = 0; i < num_stories; ++i) {
 		json_t *story, *jurl, *jtitle;
 		const char *url, *title;
 
@@ -96,7 +105,7 @@ size_t prettify_stories(char **str, json_t **stories)
 
 		fprintf(f, "%d: %s\n", i + 1, title);
 
-		if (i + 1 == NUM_STORIES)
+		if (i + 1 == num_stories)
 			fprintf(f, "\t(%s)", url);
 		else
 			fprintf(f, "\t(%s)\n\n", url);
@@ -117,22 +126,27 @@ int main(int argc, char *argv[])
 	bool help = false;
 	bool verbose = false;
 
+	unsigned long num_stories = 5;
+
 	char text_buf[HTTP_BUFSIZ] = { 0 };
 	char story_text_url[256] = { 0 };
 
 	json_error_t jerror;
-	json_t *stories_root;
-	json_t *stories[NUM_STORIES] = { NULL };
+	json_auto_t *stories_root;
+	json_t **stories;
 
 	ITER_ARGS(
 		HAS_ARG(help, "-h");
 		HAS_ARG(help, "--help");
 		HAS_ARG(verbose, "-v");
 		HAS_ARG(verbose, "--verbose");
+		HAS_INT_ARG(num_stories, 1, 500);
 	);
 
+	stories = calloc(num_stories, sizeof(json_t *));
+
 	if (help) {
-		PRINTLN("Usage: minhn [OPTION...]");
+		PRINTLN("Usage: minhn [OPTION...] [num_stories]");
 		PRINTLN("\t-v, --verbose");
 		PRINTLN("\t-h, --help");
 		return 0;
@@ -157,8 +171,9 @@ int main(int argc, char *argv[])
 		FATAL("received unknown json blob");
 	}
 
-	for (int i = 0; i < NUM_STORIES; ++i) {
-		json_t *element, *story_root;
+	for (int i = 0; i < num_stories; ++i) {
+		json_auto_t *element;
+		json_t *story_root;
 		json_int_t id;
 
 		element = json_array_get(stories_root, i);
@@ -186,17 +201,17 @@ int main(int argc, char *argv[])
 		stories[i] = story_root;
 	}
 
-	/* output length return unused */
-	prettify_stories(&output, stories);
+	prettify_stories(&output, stories, num_stories);
 
 	PRINTLN("%s", output);
 
-	/* free json blobs */
-	json_decref(stories_root);
+	/* cleanup */
 
-	for (int i = 0; i < NUM_STORIES; ++i) {
+	for (int i = 0; i < num_stories; ++i)
 		json_decref(stories[i]);
-	}
+
+	free(stories);
+	free(output);
 
 	return 0;
 }

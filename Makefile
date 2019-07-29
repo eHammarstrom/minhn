@@ -1,10 +1,11 @@
-CC     = gcc
+CC     = clang
+DEBUG  = -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS = -Wall
 SRC    = $(wildcard *.c)
 LIBS   = libcurl jansson
 
 minhn: $(SRC)
-	$(CC) *.c -o $@ $(CFLAGS) `pkg-config --libs libcurl jansson`
+	$(CC) *.c -o $@ $(CFLAGS) `pkg-config --libs $(LIBS)`
 
 check-macro:
 	$(CC) -E main.c
