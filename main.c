@@ -42,6 +42,8 @@
 
 #define HTTP_BUFSIZ (10 * 1024)
 
+bool verbose = false;
+
 int request_body(char *buf, size_t bufsiz, char *url)
 {
 	CURL *curl;
@@ -60,6 +62,7 @@ int request_body(char *buf, size_t bufsiz, char *url)
 		goto req_err;
 	}
 
+	VPRINTLN("requesting: %s", url);
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, http_buf);
@@ -124,7 +127,6 @@ int main(int argc, char *argv[])
 	char *output;
 
 	bool help = false;
-	bool verbose = false;
 
 	unsigned long num_stories = 5;
 
@@ -142,6 +144,8 @@ int main(int argc, char *argv[])
 		HAS_ARG(verbose, "--verbose");
 		HAS_INT_ARG(num_stories, 1, 500);
 	);
+
+	VPRINTLN("to retrieve %lu stories", num_stories);
 
 	stories = calloc(num_stories, sizeof(json_t *));
 
