@@ -24,7 +24,7 @@
 	if (strncmp(argv[i], str, sizeof(str)) == 0)                           \
 		var = true;
 
-#define HTTP_BUFSIZ (1024 * 1024)
+#define HTTP_BUFSIZ (10 * 1024)
 
 #define NUM_STORIES (5)
 
