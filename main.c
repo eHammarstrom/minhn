@@ -112,9 +112,6 @@ size_t prettify_stories(char **str, json_t **stories, unsigned int num_stories)
 			fprintf(f, "\t(%s)", url);
 		else
 			fprintf(f, "\t(%s)\n\n", url);
-
-		json_decref(jurl);
-		json_decref(jtitle);
 	}
 
 	fclose(f);
@@ -167,8 +164,8 @@ int main(int argc, char *argv[])
 	stories_root = json_loads(text_buf, 0, &jerror);
 
 	if (!stories_root) {
-		char *msg = jerror.text;
-		FATAL("failed to parse top stories, %s:\n%s", msg, text_buf);
+		FATAL("failed to parse top stories, %s:\n%s",
+		      (char *)jerror.text, text_buf);
 	}
 
 	if (!json_is_array(stories_root)) {
@@ -176,7 +173,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (int i = 0; i < num_stories; ++i) {
-		json_auto_t *element;
+		json_t *element;
 		json_t *story_root;
 		json_int_t id;
 
@@ -210,6 +207,8 @@ int main(int argc, char *argv[])
 	PRINTLN("%s", output);
 
 	/* cleanup */
+
+	curl_global_cleanup();
 
 	for (int i = 0; i < num_stories; ++i)
 		json_decref(stories[i]);

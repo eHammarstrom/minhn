@@ -1,4 +1,4 @@
-CC     = clang
+CC     = gcc
 DEBUG  = -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS = -Wall
 SRC    = $(wildcard *.c)
@@ -13,4 +13,7 @@ check-macro:
 install:
 	mkdir -p /usr/bin
 	mv ./minhn /usr/bin
+
+clean:
+	rm -f minhn
 
